@@ -45,23 +45,3 @@ CREATE TABLE attachments (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
-
-CREATE TABLE student_notice_view (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id BIGINT NOT NULL,
-    notice_id BIGINT NOT NULL,
-    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (notice_id) REFERENCES notices(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
-
-CREATE TABLE audit_log (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    action_type VARCHAR(50),
-    description TEXT,
-    user_id BIGINT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

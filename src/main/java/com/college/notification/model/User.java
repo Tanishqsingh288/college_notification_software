@@ -30,6 +30,11 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @ManyToOne
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

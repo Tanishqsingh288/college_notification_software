@@ -1,7 +1,9 @@
 package com.college.notification.service;
 
+import com.college.notification.dto.RegisterRequestDTO;
+import com.college.notification.model.Department;
 import com.college.notification.model.User;
-import com.college.notification.model.User.Role;
+import com.college.notification.repository.DepartmentRepository;
 import com.college.notification.repository.UserRepository;
 import com.college.notification.service.exception.AuthException;
 import io.jsonwebtoken.Claims;
@@ -20,118 +22,93 @@ import java.util.Date;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Use a static key for demo. In production, use ENV variable
     private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final long TOKEN_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
+    private static final long TOKEN_EXPIRATION_MS = 60 * 60 * 1000;
 
-    /**
-     * Registers a new user with the given role (STUDENT or TEACHER).
-     */
-    public User register(String email, String password, String fullName, String roleString) {
-        validateEmail(email);
-        validatePassword(password);
+    // ------------------------
+    // REGISTER
+    // ------------------------
+    public User register(RegisterRequestDTO dto) {
 
-        if (userRepository.existsByEmail(email)) {
-            throw new AuthException("Email is already registered");
+        if (userRepository.existsByEmail(dto.getEmail().trim().toLowerCase())) {
+            throw new AuthException("Email already registered");
         }
 
-        Role role = parseRole(roleString);
+        User.Role role;
+        try {
+            role = User.Role.valueOf(dto.getRole().trim().toUpperCase());
+        } catch (RuntimeException e) {
+            throw new AuthException("Invalid role: must be STUDENT or TEACHER");
+        }
 
-        User newUser = User.builder()
-                .email(email.trim().toLowerCase())
-                .password(passwordEncoder.encode(password))
-                .fullName(fullName.trim())
+        Department dept = null;
+        if (dto.getDepartmentId() != null) {
+            dept = departmentRepository.findById(dto.getDepartmentId())
+                    .orElseThrow(() -> new AuthException("Invalid department ID"));
+        }
+
+        User user = User.builder()
+                .fullName(dto.getFullName().trim())
+                .email(dto.getEmail().trim().toLowerCase())
+                .password(passwordEncoder.encode(dto.getPassword()))
                 .role(role)
+                .department(dept)
                 .build();
 
-        return userRepository.save(newUser);
+        return userRepository.save(user);
     }
 
-    /**
-     * Logs in a user by validating email, password, and role.
-     * Returns a JWT token on success.
-     */
+    // ------------------------
+    // LOGIN
+    // ------------------------
     public String login(String email, String password, String expectedRole) {
-        if (email == null || email.isBlank() || password == null || password.isBlank()) {
-            throw new AuthException("Email and password must not be empty");
-        }
 
         User user = userRepository.findByEmail(email.trim().toLowerCase())
                 .orElseThrow(() -> new AuthException("Invalid email or password"));
-
-        // Enforce login type: teacher login page must log in teachers only
-        if (!user.getRole().name().equalsIgnoreCase(expectedRole)) {
-            throw new AuthException("This account is not registered as a " + expectedRole);
-        }
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new AuthException("Invalid email or password");
         }
 
+        if (!user.getRole().name().equalsIgnoreCase(expectedRole)) {
+            throw new AuthException("This account is not a " + expectedRole);
+        }
+
         return generateToken(user);
     }
 
-    /**
-     * Decodes a JWT token and fetches the current authenticated user.
-     */
+    // ------------------------
+    // GET CURRENT USER
+    // ------------------------
     public User getCurrentUser(String token) {
         String email = extractEmailFromToken(token);
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthException("User not found"));
     }
 
-    /**
-     * Allows the user to change their password securely.
-     */
-    public void changePassword(User user, String oldPassword, String newPassword) {
-        validatePassword(newPassword);
+    // ------------------------
+    // CHANGE PASSWORD
+    // ------------------------
+    public void changePassword(User user, String oldPass, String newPass) {
 
-        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new AuthException("Old password is incorrect");
+        if (!passwordEncoder.matches(oldPass, user.getPassword())) {
+            throw new AuthException("Old password incorrect");
         }
 
-        user.setPassword(passwordEncoder.encode(newPassword));
+        if (newPass.length() < 6) {
+            throw new AuthException("New password must be 6+ chars");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPass));
         userRepository.save(user);
     }
 
-    // ----------------------------
-    // 🧠 Helper Methods
-    // ----------------------------
-
-    public boolean isTeacher(User user) {
-        return user.getRole() == Role.TEACHER;
-    }
-
-    public boolean isStudent(User user) {
-        return user.getRole() == Role.STUDENT;
-    }
-
-    private Role parseRole(String roleString) {
-        try {
-            return Role.valueOf(roleString.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new AuthException("Invalid role. Must be STUDENT or TEACHER");
-        }
-    }
-
-    private void validateEmail(String email) {
-        if (email == null || !email.contains("@") || email.length() < 5) {
-            throw new AuthException("Invalid email address");
-        }
-    }
-
-    private void validatePassword(String password) {
-        if (password == null || password.length() < 6) {
-            throw new AuthException("Password must be at least 6 characters long");
-        }
-    }
-
-    // ----------------------------
-    // 🔐 JWT Token Helpers
-    // ----------------------------
-
+    // ------------------------
+    // JWT METHODS
+    // ------------------------
     private String generateToken(User user) {
         return Jwts.builder()
                 .setSubject(user.getEmail())
@@ -150,6 +127,7 @@ public class AuthService {
                     .parseClaimsJws(token.replace("Bearer ", ""))
                     .getBody();
             return claims.getSubject();
+
         } catch (Exception e) {
             throw new AuthException("Invalid or expired token");
         }
