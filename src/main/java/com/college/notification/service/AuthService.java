@@ -1,135 +1,143 @@
 package com.college.notification.service;
 
-import com.college.notification.dto.RegisterRequestDTO;
-import com.college.notification.model.Department;
-import com.college.notification.model.User;
-import com.college.notification.repository.DepartmentRepository;
-import com.college.notification.repository.UserRepository;
-import com.college.notification.service.exception.AuthException;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
+import com.college.notification.dto.*;
+import com.college.notification.entity.*;
+import com.college.notification.mailing.MailService;
+import com.college.notification.repository.*;
+import com.college.notification.config.JwtUtils;
+import com.college.notification.mailing.MailBodies;
+import com.college.notification.mailing.MailSubjects;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.util.Date;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
-    private final UserRepository userRepository;
-    private final DepartmentRepository departmentRepository;
-    private final PasswordEncoder passwordEncoder;
+    @Autowired
+    private UserRepository userRepository;
 
-    private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final long TOKEN_EXPIRATION_MS = 60 * 60 * 1000;
+    @Autowired
+    private StudentRepository studentRepository;
 
-    // ------------------------
-    // REGISTER
-    // ------------------------
-    public User register(RegisterRequestDTO dto) {
+    @Autowired
+    private TeacherRepository teacherRepository;
 
-        if (userRepository.existsByEmail(dto.getEmail().trim().toLowerCase())) {
-            throw new AuthException("Email already registered");
+    @Autowired
+    private DepartmentRepository departmentRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtils jwtUtils;
+
+    @Autowired
+    private MailService mailService; // ✅ mail service
+
+    /* ================= REGISTER ================= */
+    public AuthResponse register(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already registered");
         }
 
-        User.Role role;
-        try {
-            role = User.Role.valueOf(dto.getRole().trim().toUpperCase());
-        } catch (RuntimeException e) {
-            throw new AuthException("Invalid role: must be STUDENT or TEACHER");
+        // 1️⃣ Save USER
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setIsAdmin("TEACHER".equalsIgnoreCase(request.getRole()));
+
+        User savedUser = userRepository.save(user);
+        String uid = String.valueOf(savedUser.getId());
+
+        // 2️⃣ Validate Department
+        Department department = departmentRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new RuntimeException("Department not found"));
+
+        // 3️⃣ Role-based insert
+        if ("TEACHER".equalsIgnoreCase(request.getRole())) {
+            Teacher teacher = new Teacher();
+            teacher.setUid(uid);
+            teacher.setName(request.getName());
+            teacher.setDeptId(department.getId());
+            teacher.setDeptName(department.getName());
+            teacher.setIsActive(true);
+            teacherRepository.save(teacher);
+
+        } else if ("STUDENT".equalsIgnoreCase(request.getRole())) {
+            Student student = new Student();
+            student.setUid(uid);
+            student.setName(request.getName());
+            student.setDeptId(department.getId());
+            student.setDeptName(department.getName());
+            student.setIsActive(true);
+            studentRepository.save(student);
+
+        } else {
+            throw new RuntimeException("Invalid role (STUDENT / TEACHER)");
         }
 
-        Department dept = null;
-        if (dto.getDepartmentId() != null) {
-            dept = departmentRepository.findById(dto.getDepartmentId())
-                    .orElseThrow(() -> new AuthException("Invalid department ID"));
-        }
+        // ✅ SEND WELCOME EMAIL
+        mailService.sendMail(
+                user.getEmail(),
+                MailSubjects.WELCOME,
+                MailBodies.welcome(user.getName())
+        );
 
-        User user = User.builder()
-                .fullName(dto.getFullName().trim())
-                .email(dto.getEmail().trim().toLowerCase())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .role(role)
-                .department(dept)
-                .build();
-
-        return userRepository.save(user);
+        // 4️⃣ JWT
+        String token = jwtUtils.generateToken(user.getEmail());
+        return new AuthResponse(token, user.getName(), user.getEmail(), user.getIsAdmin());
     }
 
-    // ------------------------
-    // LOGIN
-    // ------------------------
-    public String login(String email, String password, String expectedRole) {
+    /* ================= LOGIN ================= */
+    public String login(LoginRequest request) throws Exception {
 
-        User user = userRepository.findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() -> new AuthException("Invalid email or password"));
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new Exception("User not found"));
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new AuthException("Invalid email or password");
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new Exception("Invalid password");
         }
 
-        if (!user.getRole().name().equalsIgnoreCase(expectedRole)) {
-            throw new AuthException("This account is not a " + expectedRole);
+        if (request.isTeacher() && !user.getIsAdmin()) {
+            throw new Exception("User is not a teacher");
         }
 
-        return generateToken(user);
+        // ✅ SEND LOGIN ALERT MAIL
+        mailService.sendMail(
+                user.getEmail(),
+                MailSubjects.LOGIN_ALERT,
+                MailBodies.loginAlert()
+        );
+
+        return jwtUtils.generateToken(user.getEmail());
     }
 
-    // ------------------------
-    // GET CURRENT USER
-    // ------------------------
-    public User getCurrentUser(String token) {
-        String email = extractEmailFromToken(token);
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthException("User not found"));
-    }
+    /* ================= RESET PASSWORD ================= */
+    public void resetPassword(ResetPasswordRequest request) throws Exception {
 
-    // ------------------------
-    // CHANGE PASSWORD
-    // ------------------------
-    public void changePassword(User user, String oldPass, String newPass) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new Exception("Email not registered"));
 
-        if (!passwordEncoder.matches(oldPass, user.getPassword())) {
-            throw new AuthException("Old password incorrect");
+        // ✅ password mismatch check
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new Exception("Password mismatch");
         }
 
-        if (newPass.length() < 6) {
-            throw new AuthException("New password must be 6+ chars");
-        }
-
-        user.setPassword(passwordEncoder.encode(newPass));
+        // 🔐 reset password
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-    }
 
-    // ------------------------
-    // JWT METHODS
-    // ------------------------
-    private String generateToken(User user) {
-        return Jwts.builder()
-                .setSubject(user.getEmail())
-                .claim("role", user.getRole().name())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + TOKEN_EXPIRATION_MS))
-                .signWith(SECRET_KEY)
-                .compact();
-    }
-
-    private String extractEmailFromToken(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(SECRET_KEY)
-                    .build()
-                    .parseClaimsJws(token.replace("Bearer ", ""))
-                    .getBody();
-            return claims.getSubject();
-
-        } catch (Exception e) {
-            throw new AuthException("Invalid or expired token");
-        }
+        // ✅ SEND PASSWORD RESET SUCCESS MAIL
+        mailService.sendMail(
+                user.getEmail(),
+                MailSubjects.PASSWORD_RESET_SUCCESS,
+                MailBodies.passwordResetSuccess()
+        );
     }
 }

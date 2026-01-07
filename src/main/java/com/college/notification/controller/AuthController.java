@@ -1,56 +1,58 @@
 package com.college.notification.controller;
 
 import com.college.notification.dto.*;
-import com.college.notification.model.User;
 import com.college.notification.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth")
-@RequiredArgsConstructor
+@RequestMapping("/api/cns/auth")
 public class AuthController {
 
-    private final AuthService authService;
+    @Autowired
+    private AuthService authService;
 
-    // -----------------------
-    // REGISTER
-    // -----------------------
     @PostMapping("/register")
-    public UserResponseDTO register(@RequestBody RegisterRequestDTO dto) {
-        User user = authService.register(dto);
-        return UserResponseDTO.fromEntity(user);
+    public AuthResponse register(@RequestBody RegisterRequest request) {
+        return authService.register(request);
     }
 
-    // -----------------------
-    // LOGIN
-    // -----------------------
     @PostMapping("/login")
-    public AuthResponseDTO login(@RequestBody AuthRequestDTO dto) {
-        String token = authService.login(dto.getEmail(), dto.getPassword(), dto.getRole());
-        return new AuthResponseDTO(token);
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+        try {
+            String token = authService.login(request);
+
+            String role = request.isTeacher() ? "TEACHER" : "STUDENT";
+            String email = request.getEmail();
+
+            LoginResponse response = new LoginResponse(token, email, role);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(null); // For errors, you could make a separate ErrorResponse DTO
+        }
     }
 
-    // -----------------------
-    // CURRENT USER
-    // -----------------------
-    @GetMapping("/me")
-    public UserResponseDTO me(HttpServletRequest req) {
-        String token = req.getHeader("Authorization");
-        User user = authService.getCurrentUser(token);
-        return UserResponseDTO.fromEntity(user);
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        return ResponseEntity.ok("Logged out successfully");
     }
 
-    // -----------------------
-    // CHANGE PASSWORD
-    // -----------------------
-    @PostMapping("/change-password")
-    public String changePassword(@RequestBody ChangePasswordDTO dto, HttpServletRequest req) {
-        String token = req.getHeader("Authorization");
-        User user = authService.getCurrentUser(token);
+    @PostMapping("/resetpassword")
+    public ResponseEntity<?> resetPassword(
+            @RequestBody ResetPasswordRequest request) {
 
-        authService.changePassword(user, dto.getOldPassword(), dto.getNewPassword());
-        return "Password updated successfully";
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok(
+                    new ResetPasswordResponse("Password reset successful")
+            );
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
+
 }

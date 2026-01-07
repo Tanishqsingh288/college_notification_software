@@ -1,7 +1,14 @@
 package com.college.notification.repository;
 
-import com.college.notification.model.Department;
+import com.college.notification.entity.Department;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
+@Repository
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
+    List<Department> findByIsActiveTrueOrderByNameAsc();
+    List<Department> findByIsActiveFalseOrderByNameAsc();
+    List<Department> findAllByOrderByCreatedAtDesc();
 }
