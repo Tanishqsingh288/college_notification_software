@@ -10,4 +10,5 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findAllByOrderByNameAsc();
     List<Student> findByIsActiveTrueOrderByNameAsc();
     List<Student> findByDeptIdOrderByNameAsc(Long deptId);
+    List<Student> findByNameContainingIgnoreCaseOrderByNameAsc(String namePart);
 }

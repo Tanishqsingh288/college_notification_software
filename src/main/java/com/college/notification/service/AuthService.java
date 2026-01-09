@@ -140,4 +140,20 @@ public class AuthService {
                 MailBodies.passwordResetSuccess()
         );
     }
+    public boolean verifyAdmin(String email, String rawPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check password
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("Invalid password");  // <-- throw error if password is wrong
+        }
+
+        // Return true only if isAdmin is true
+        return Boolean.TRUE.equals(user.getIsAdmin());
+    }
+
+
+
+
 }

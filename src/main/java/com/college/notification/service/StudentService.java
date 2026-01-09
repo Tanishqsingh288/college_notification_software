@@ -18,8 +18,12 @@ public class StudentService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public List<Student> listAllStudents() {
-        return studentRepository.findAllByOrderByNameAsc();
+    public List<Student> searchStudents(String search) {
+        if (search == null || search.isBlank()) {
+            return studentRepository.findAllByOrderByNameAsc(); // no filter
+        } else {
+            return studentRepository.findByNameContainingIgnoreCaseOrderByNameAsc(search);
+        }
     }
 
     public List<Student> listActiveStudents() {

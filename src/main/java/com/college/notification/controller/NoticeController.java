@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,11 +56,19 @@ public class NoticeController {
     // GET /api/cns/notices/daterange?from=...&to=...
     @GetMapping("/daterange")
     public ResponseEntity<List<Notice>> getNoticesByDateRange(
-            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+            @RequestParam("from")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate from,
+
+            @RequestParam("to")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate to
     ) {
-        return ResponseEntity.ok(noticeService.getNoticesByDateRange(from, to));
+        return ResponseEntity.ok(
+                noticeService.getNoticesByDateRange(from, to)
+        );
     }
+
 
     // 6️⃣ Search notices by TITLE / KEYWORD
     // GET /api/cns/notices/search?keyword=exam
@@ -100,10 +109,10 @@ public class NoticeController {
     // 9️⃣ Delete notice FILE
     // DELETE /api/cns/notices/file/{noticeId}
     @DeleteMapping("/file/{noticeId}")
-    public ResponseEntity<?> deleteFile(@PathVariable Long noticeId) {
+    public ResponseEntity<?> deleteNotice(@PathVariable Long noticeId) {
         try {
-            noticeService.deleteFileByNoticeId(noticeId);
-            return ResponseEntity.ok(Map.of("message", "File deleted successfully"));
+            noticeService.deleteNotice(noticeId);
+            return ResponseEntity.ok(Map.of("message", "Notice deleted successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
@@ -118,5 +127,13 @@ public class NoticeController {
             @RequestParam boolean isActive
     ) {
         return ResponseEntity.ok(noticeService.updateAdminStatus(id, isActive));
+    }
+
+    @GetMapping("/search-by-keyword")
+    public ResponseEntity<List<Notice>> searchByKeyword(
+            @RequestParam(name = "keyword", required = false) String keyword
+    ) {
+        List<Notice> notices = noticeService.searchNoticesByKeyword(keyword);
+        return ResponseEntity.ok(notices);
     }
 }

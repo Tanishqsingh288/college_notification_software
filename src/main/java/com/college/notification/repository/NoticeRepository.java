@@ -29,4 +29,5 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     List<Notice> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String title);
 
     List<Notice> findByKeywordContainingIgnoreCase(String keyword);
+
 }

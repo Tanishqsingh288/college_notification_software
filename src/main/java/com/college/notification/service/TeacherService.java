@@ -7,6 +7,8 @@ import com.college.notification.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TeacherService {
@@ -22,7 +24,7 @@ public class TeacherService {
      */
     public User updateAdminStatus(Long teacherId, boolean isAdmin) {
         // 1️⃣ Get the teacher
-        Teacher teacher = teacherRepository.findById(teacherId)
+        Teacher teacher = teacherRepository.findByUid(String.valueOf(teacherId))
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
         // 2️⃣ Get the linked user
@@ -34,5 +36,8 @@ public class TeacherService {
 
         // 4️⃣ Save user
         return userRepository.save(user);
+    }
+    public List<User> getAdminUsers() {
+        return userRepository.findByIsAdminTrue();
     }
 }

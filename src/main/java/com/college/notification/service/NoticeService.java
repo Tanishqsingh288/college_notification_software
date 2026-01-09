@@ -15,6 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -47,10 +49,23 @@ public class NoticeService {
         return noticeRepository.findByDeptIdOrderByCreatedAtDesc(deptId);
     }
 
-    // 5) List notices by date range
-    public List<Notice> getNoticesByDateRange(Instant from, Instant to) {
-        return noticeRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(from, to);
+    public List<Notice> getNoticesByDateRange(LocalDate from, LocalDate to) {
+
+        ZoneId zone = ZoneId.systemDefault(); // IST if server is in India
+
+        Instant fromInstant = from
+                .atStartOfDay(zone)
+                .toInstant();
+
+        Instant toInstant = to
+                .plusDays(1)
+                .atStartOfDay(zone)
+                .toInstant();
+
+        return noticeRepository
+                .findByCreatedAtBetweenOrderByCreatedAtDesc(fromInstant, toInstant);
     }
+
 
     // 6) Search notices by title
     public List<Notice> searchNoticesByTitle(String title) {
@@ -145,28 +160,28 @@ public class NoticeService {
         return notice.getFileUrl();
     }
 
-    public void deleteFileByNoticeId(Long noticeId) throws Exception {
+    public void deleteNotice(Long noticeId) throws Exception {
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new Exception("Notice not found"));
 
         String fileUrl = notice.getFileUrl();
+
+        // 1️⃣ Delete file from Dropbox if present
         if (fileUrl != null && !fileUrl.isEmpty()) {
             try {
-                // Use Dropbox API to get actual path from shared link
+                // Get actual Dropbox path from shared link
                 String dropboxPath = dbxClient.sharing().getSharedLinkMetadata(fileUrl).getPathLower();
 
+                // Delete file in Dropbox
                 dbxClient.files().deleteV2(dropboxPath);
-
-                // Clear URL in database
-                notice.setFileUrl(null);
-                noticeRepository.save(notice);
 
             } catch (DbxException e) {
                 throw new Exception("Failed to delete file from Dropbox: " + e.getMessage());
             }
-        } else {
-            throw new Exception("No file attached to this notice");
         }
+
+        // 2️⃣ Finally delete notice row from database
+        noticeRepository.deleteById(noticeId);
     }
 
 
@@ -192,7 +207,13 @@ public class NoticeService {
         notice.setIsActive(isActive);
         return noticeRepository.save(notice);
     }
-
+    // Search notices by keyword
+    public List<Notice> searchNoticesByKeyword(String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            return noticeRepository.findAll(); // return all if empty search
+        }
+        return noticeRepository.findByKeywordContainingIgnoreCase(keyword);
+    }
 
 
 

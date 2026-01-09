@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/cns/auth")
 public class AuthController {
@@ -55,4 +57,9 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/verify")
+    public ResponseEntity<Boolean> verifyAdmin(@RequestBody VerifyRequest request) {
+        boolean isAdmin = authService.verifyAdmin(request.getEmail(), request.getPassword());
+        return ResponseEntity.ok(isAdmin);
+    }
 }

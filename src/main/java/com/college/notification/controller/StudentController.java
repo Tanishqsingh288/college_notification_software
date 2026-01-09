@@ -14,7 +14,11 @@ public class StudentController {
     private final StudentService studentService;
 
     @GetMapping
-    public List<Student> listAll() { return studentService.listAllStudents(); }
+    public List<Student> listAll(
+            @RequestParam(value = "search", required = false) String search
+    ) {
+        return studentService.searchStudents(search);
+    }
 
     @GetMapping("/active")
     public List<Student> listActive() { return studentService.listActiveStudents(); }
