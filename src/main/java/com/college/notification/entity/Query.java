@@ -29,15 +29,17 @@ public class Query {
     @Column(name = "resolved_by")
     private String resolvedBy;
 
-    // ---------------- Constructors ----------------
+    // ✅ Added resolvedAt column
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
+    // ---------------- Constructors ----------------
     public Query() {
         this.createdAt = LocalDateTime.now();
         this.resolved = false;
     }
 
     // ---------------- Getters & Setters ----------------
-
     public Long getId() {
         return id;
     }
@@ -84,6 +86,12 @@ public class Query {
 
     public void setResolved(boolean resolved) {
         this.resolved = resolved;
+        // ✅ Automatically set resolvedAt when marked resolved
+        if (resolved) {
+            this.resolvedAt = LocalDateTime.now();
+        } else {
+            this.resolvedAt = null; // in case it’s marked unresolved
+        }
     }
 
     public String getResolvedBy() {
@@ -92,5 +100,13 @@ public class Query {
 
     public void setResolvedBy(String resolvedBy) {
         this.resolvedBy = resolvedBy;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
     }
 }

@@ -4,6 +4,8 @@ import com.college.notification.dto.AddQueryRequest;
 import com.college.notification.entity.Query;
 import com.college.notification.repository.QueryRepository;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -53,6 +55,7 @@ public class QueryService {
         if (!query.isResolved()) {
             query.setResolved(true);
             query.setResolvedBy(resolvedBy);
+            query.setResolvedAt(LocalDateTime.now());
             return queryRepository.save(query);
         }
         return query;

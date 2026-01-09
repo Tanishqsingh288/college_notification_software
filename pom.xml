@@ -108,6 +108,13 @@
             <version>7.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>1.3.30</version> <!-- latest stable version -->
+        </dependency>
+
+
 
 
 
