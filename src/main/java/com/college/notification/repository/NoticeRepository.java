@@ -30,4 +30,6 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     List<Notice> findByKeywordContainingIgnoreCase(String keyword);
 
+    List<Notice> findByDeptIdOrderByCreatedAtAsc(Long deptId);
+
 }

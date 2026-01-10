@@ -87,6 +87,7 @@ public class NoticeService {
         notice.setTitle(request.getTitle() != null ? request.getTitle() : safeFileName);
         notice.setDescription(request.getDescription());
         notice.setKeyword(request.getKeyword());
+        notice.setSession(request.getSession()); // Set session
         notice.setValidTill(request.getValidTillAsInstant());
         notice.setUploadedByName(request.getUploadedByName());
         notice.setUploaderId(request.getUploaderId());
@@ -136,6 +137,7 @@ public class NoticeService {
             FileUploadResponse response = new FileUploadResponse(true, fileUrl, notice.getId(), "Upload successful");
             response.setTitle(notice.getTitle());
             response.setDescription(notice.getDescription());
+            response.setSession(notice.getSession()); // Include session in response
             response.setValidTill(notice.getValidTill());
             response.setUploadedByName(notice.getUploadedByName());
             response.setUploaderId(notice.getUploaderId());

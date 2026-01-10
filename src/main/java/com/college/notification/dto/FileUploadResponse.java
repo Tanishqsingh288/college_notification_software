@@ -12,6 +12,7 @@ public class FileUploadResponse {
     // Additional metadata
     private String title;
     private String description;
+    private String session; // Added session field
     private Instant validTill;
     private String uploadedByName;
     private Long uploaderId;
@@ -44,6 +45,9 @@ public class FileUploadResponse {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getSession() { return session; }
+    public void setSession(String session) { this.session = session; }
 
     public Instant getValidTill() { return validTill; }
     public void setValidTill(Instant validTill) { this.validTill = validTill; }

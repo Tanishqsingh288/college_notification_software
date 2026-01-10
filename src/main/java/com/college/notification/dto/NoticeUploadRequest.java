@@ -1,6 +1,7 @@
 package com.college.notification.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.FutureOrPresent;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +15,9 @@ public class NoticeUploadRequest {
     private String title;          // optional - if null, filename will be used
     private String description;    // optional
     private String keyword;        // optional
+
+    @NotBlank(message = "Session is required")
+    private String session;        // e.g., "2024-25", "2025-26"
 
     @NotNull(message = "validTill date is required")
     @DateTimeFormat(pattern = "yyyy-MM-dd")
@@ -50,6 +54,9 @@ public class NoticeUploadRequest {
 
     public String getKeyword() { return keyword; }
     public void setKeyword(String keyword) { this.keyword = keyword; }
+
+    public String getSession() { return session; }
+    public void setSession(String session) { this.session = session; }
 
     public LocalDate getValidTill() { return validTill; }
     public void setValidTill(LocalDate validTill) { this.validTill = validTill; }

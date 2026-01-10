@@ -14,6 +14,8 @@ public class Notice {
     private String title;
     private String keyword;
 
+    private String session; // New field
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -33,8 +35,6 @@ public class Notice {
 
     private Instant createdAt = Instant.now();
 
-
-
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -44,6 +44,9 @@ public class Notice {
 
     public String getKeyword() { return keyword; }
     public void setKeyword(String keyword) { this.keyword = keyword; }
+
+    public String getSession() { return session; }
+    public void setSession(String session) { this.session = session; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
@@ -69,7 +72,7 @@ public class Notice {
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
 
-    public  Integer getDownloadCount() { return downloadCount; }
+    public Integer getDownloadCount() { return downloadCount; }
     public void setDownloadCount(Integer downloadCount) { this.downloadCount = downloadCount; }
 
     public Instant getCreatedAt() { return createdAt; }
